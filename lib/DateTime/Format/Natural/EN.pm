@@ -2,20 +2,30 @@ package DateTime::Format::Natural::EN;
 
 use strict;
 use warnings;
-use base qw(Exporter);
 
 use DateTime;
 
-our ($VERSION, @EXPORT_OK);
+our $VERSION = '0.06';
 
-$VERSION = '0.05';
-@EXPORT_OK = qw(parse_datetime);
+sub new {
+    my $class = shift;
+    return bless {}, $class || ref($class);
+}
 
 sub parse_datetime {
-    my ($date_string, $opts) = @_;
+    my $self = shift;
+    
+    my ($DEBUG, $date_string, %opts);
+
+    if (@_ > 1) {
+        %opts        = @_;
+	$date_string = $opts{string};
+        $DEBUG       = $opts{debug};
+    } else {
+        ($date_string) = @_;
+    }
 	
     no strict 'refs';
-    my $DEBUG = $opts->{debug};
 
     my @tokens = split ' ', $date_string;
     my $buffer = '';
@@ -289,14 +299,16 @@ DateTime::Format::Natural::EN - Create machine readable date/time with natural p
 
 =head1 SYNOPSIS
 
- use DateTime::Format::Natural::EN qw(parse_datetime);
-
- $dt = parse_datetime($date_string);
+ use DateTime::Format::Natural::EN;
+ 
+ $parse = DateTime::Format::Natural::EN->new();
+ 
+ $dt = $parse->parse_datetime($date_string);
 
 =head1 DESCRIPTION
 
-C<DateTime::Format::Natural::EN> exports a function, C<parse_datetime()>, upon request which 
-takes a string with a human readable date/time and creates a machine readable one by applying 
+C<DateTime::Format::Natural::EN> consists of a method, C<parse_datetime()>, which takes a 
+string with a human readable date/time and creates a machine readable one by applying 
 natural parsing logic.
 
 =head1 FUNCTIONS
@@ -305,12 +317,14 @@ natural parsing logic.
 
 Creates a C<DateTime> object from a human readable date/time string.
 
- $dt = parse_datetime($date_string);
+ $dt = $parse->parse_datetime($date_string);
 
- $dt = parse_datetime($date_string, { debug => 1 });
+ $dt = $parse->parse_datetime(string => $date_string, debug => 1);
 
-The options hash may contain the string 'debug' with a boolean value (0/1).
-Will output each token that is analysed with a trailing newline.
+The options may contain the keys 'string' and 'debug'.
+Former one may consist of the datestring, whereas latter one holds the boolean value for the
+debugging option. If debugging is enabled, each token that is analysed will be output to 
+stdout with a trailing newline.
 
 Returns a C<DateTime> object.
 
