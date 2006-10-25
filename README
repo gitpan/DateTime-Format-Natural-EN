@@ -1,0 +1,77 @@
+NAME
+    DateTime::Format::Natural::EN - Create machine readable date/time with
+    natural parsing logic
+
+SYNOPSIS
+     use DateTime::Format::Natural::EN qw(parse_datetime);
+
+     $dt = parse_datetime($date_string);
+
+DESCRIPTION
+    "DateTime::Format::Natural::EN" exports a function, "parse_datetime()",
+    upon request which takes a string with a human readable date/time and
+    creates a machine readable one by applying natural parsing logic.
+
+FUNCTIONS
+  parse_datetime
+    Creates a "DateTime" object from a human readable date/time string.
+
+     $dt = parse_datetime($date_string);
+
+     $dt = parse_datetime($date_string, { debug => 1 });
+
+    The options hash may contain the string 'debug' with a boolean value
+    (0/1). Will output each token that is analysed with a trailing newline.
+
+    Returns a "DateTime" object.
+
+  format_datetime
+    Not implemented yet.
+
+EXAMPLES
+    Below are some examples of human readable date/time input:
+
+  Simple
+     thursday
+     november
+     friday 13:00
+     mon 2:35
+     4pm
+     6 in the morning
+     friday 1pm
+     sat 7 in the evening
+     yesterday
+     today
+     tomorrow
+     this tuesday
+     next month
+     this morning
+     this second
+     yesterday at 4:00
+     last friday at 20:00
+     last week tuesday
+     tomorrow at 6:45pm
+     afternoon yesterday
+     thursday last week
+
+  Complex
+     3 years ago
+     5 months before now
+     7 hours ago
+     7 days from now
+     in 3 hours
+     1 year ago tomorrow
+     3 months ago saturday at 5:00pm
+
+SEE ALSO
+    DateTime, <http://datetime.perl.org/>
+
+AUTHOR
+    Steven Schubiger <schubiger@cpan.org>
+
+LICENSE
+    This program is free software; you may redistribute it and/or modify it
+    under the same terms as Perl itself.
+
+    See <http://www.perl.com/perl/misc/Artistic.html>
+

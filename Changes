@@ -1,0 +1,32 @@
+Revision history for Perl extension DateTime::Format::Natural::EN.
+
+0.05 Wed Oct 25 11:27:26 CEST 2006
+
+ - Moved from namespace DateTime::Natural::Parse to DateTime::From::Natural::EN
+   [Dave Rolsky <urth@autarch.org>]
+
+ - Renamed natural_parse() to parse_datestring().
+
+0.04 Wed Oct 25 00:17:01 CEST 2006
+
+ - Updated the code to process some "complex" input.
+
+ - Actualized the documentation accordingly.
+
+0.03 Tue Oct 24 01:25:03 CEST 2006
+ 
+ - Appended the i(ncasesensitive) Modifier to a few regular expressions.
+
+ - Fixed the broken newlines for the example documentation.
+
+0.02 Mon Oct 23 23:22:41 CEST 2006
+
+ - DateTime has been added to the dependencies list.
+ 
+ - natural_parse() returns a DateTime object [Clayton L. Scott <clscott@cpan.org>]
+ 
+ - Extended documentation to include some example human readable time strings.
+
+0.01 Sun Oct 22 22:15:54 CEST 2006
+
+ - Initial version.
