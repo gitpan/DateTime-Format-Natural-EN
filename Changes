@@ -1,11 +1,15 @@
 Revision history for Perl extension DateTime::Format::Natural::EN.
 
+0.07 Sat Oct 28 17:16:53 CEST 2006
+
+ - Replaced all tabs in EN.pm with regular spaces (4).
+
 0.06 Wed Oct 25 20:24:38 CEST 2006
 
  - Substituted exporting functions with an object-oriented constructor.
    parse_datetime() is now called as a method.
    [Dave Rolsky <urth@autarch.org>]
- 
+
  - parse_datetime() takes either a datestring or an options hash.
    [Dave Rolsky <urth@autarch.org>]
 
