@@ -73,6 +73,19 @@ EXAMPLES
      3rd month next year
      7 hours before tomorrow at noon
 
+  Specific Dates
+     January 5
+     dec 25
+     may 27th
+     October 2006
+     february 14, 2004
+     Friday
+     jan 3 2010
+     3 jan 2000
+     27/5/1979
+     4:00
+     17:00
+
 SEE ALSO
     DateTime, Date::Calc, <http://datetime.perl.org/>
 

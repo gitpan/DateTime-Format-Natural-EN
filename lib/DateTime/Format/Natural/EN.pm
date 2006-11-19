@@ -8,7 +8,7 @@ no warnings 'uninitialized';
 use Date::Calc qw(Days_in_Month Decode_Day_of_Week Nth_Weekday_of_Month_Year);
 use DateTime;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 sub new {
     my $class = shift;
@@ -40,32 +40,27 @@ sub parse_datetime {
     $self->{wday}  = $wday;
     $self->{yday}  = $yday;
 
-    @{$self->{tokens}} = split ' ', $date_string;
+    $date_string =~ tr/,//d;
+
+    if ($date_string =~ m!/!) {
+        my @bits = split '\/', $date_string;
+
+        if (scalar @bits == 3) {
+            $self->{day}   = $bits[0];
+            $self->{month} = $bits[1];
+            $self->{year}  = $bits[2];
+
+            return $self->_return_dt_object;
+        }
+    } else {
+        @{$self->{tokens}} = split ' ', $date_string;
+    }
 
     for ($self->{index} = 0; $self->{index} < @{$self->{tokens}}; $self->{index}++) {
 
         print "$self->{tokens}->[$self->{index}]\n" if $DEBUG;
 
-        %{$self->{weekdays}} = (Monday    => 1,
-                                Tuesday   => 2,
-                                Wednesday => 3,
-                                Thursday  => 4,
-                                Friday    => 5,
-                                Saturday  => 6,
-                                Sunday    => 0);
-
-        %{$self->{months}} = (January   => 1,
-                              February  => 2,
-                              March     => 3,
-                              April     => 4,
-                              May       => 5,
-                              June      => 6,
-                              July      => 7,
-                              August    => 8,
-                              September => 9,
-                              October   => 10,
-                              November  => 11,
-                              December  => 12);
+        $self->_init_data;
 
         if ($self->{tokens}->[$self->{index}+2] =~ /^ago$/i) {
             $self->_ago;
@@ -78,6 +73,12 @@ sub parse_datetime {
         if ($self->{tokens}->[$self->{index}] =~ /^(?:morning|afternoon|evening)$/i) {
             $self->_daytime;
         }
+
+        if ($self->{tokens}->[$self->{index}+1] =~ /^(\d{4})$/) {
+            $self->{year}  = $1;
+        }
+
+        $self->_months();
 
         if ($self->{tokens}->[$self->{index}] =~ /^at$/i) {
             next;
@@ -92,13 +93,6 @@ sub parse_datetime {
 
         if ($self->{tokens}->[$self->{index}] =~ /^(\d{1,2})(?:st|nd|rd|th)? ?$/i) {
             $self->_number($1);
-        }
-
-        foreach my $key_month (keys %{$self->{months}}) {
-            if ($self->{tokens}->[$self->{index}] =~ /$key_month/i) {
-                $self->{month} = $self->{months}->{$key_month};
-                last;
-            }
         }
 
         if ($self->{tokens}->[$self->{index}] =~ /^\d{4}$/) {
@@ -135,7 +129,27 @@ sub parse_datetime {
 
          $self->_monthdays_limit;
          $self->_day;
+
+         return $self->_return_dt_object;
     }
+}
+
+sub _init_data {
+    my $self = shift;
+
+    my $i = 1;
+
+    %{$self->{weekdays}} = map {  $_ => $i++ } qw(Monday Tuesday Wednesday Thursday
+                                                  Friday Saturday Sunday);
+    $i = 1;
+
+    %{$self->{months}} = map { $_ => $i++ } qw(January February March April
+                                               May June July August September
+                                               October November December);
+}
+
+sub _return_dt_object {
+    my $self = shift;
 
     $self->{sec}   = "0$self->{sec}"   unless length($self->{sec})   == 2;
     $self->{min}   = "0$self->{min}"   unless length($self->{min})   == 2;
@@ -230,6 +244,24 @@ sub _daytime {
     }
 
     $self->{min} = '00';
+}
+
+sub _months {
+    my $self = shift;
+
+    foreach my $key_month (keys %{$self->{months}}) {
+        my $key_month_short = substr($key_month, 0, 3);
+        if ($self->{tokens}->[$self->{index}] =~ /$key_month/i
+            || $self->{tokens}->[$self->{index}] =~ /$key_month_short/i) {
+            $self->{month} = $self->{months}->{$key_month};
+            if ($self->{tokens}->[$self->{index}+1] =~ /^(\d{1,2})(?:st|nd|rd|th)? ?$/i) {
+                $self->{day} = $1;
+            } elsif ($self->{tokens}->[$self->{index}-1] =~ /^(\d{1,2})(?:st|nd|rd|th)? ?$/i) {
+                  $self->{day} = $1;
+            }
+            splice(@{$self->{tokens}}, $self->{index}, 2);
+        }
+    }
 }
 
 sub _number {
@@ -523,6 +555,20 @@ Below are some examples of human readable date/time input:
  3rd wednesday in november
  3rd month next year
  7 hours before tomorrow at noon
+
+=head2 Specific Dates
+
+ January 5
+ dec 25
+ may 27th
+ October 2006
+ february 14, 2004
+ Friday
+ jan 3 2010
+ 3 jan 2000
+ 27/5/1979
+ 4:00
+ 17:00
 
 =head1 SEE ALSO
 
