@@ -2,10 +2,13 @@ package DateTime::Format::Natural::EN;
 
 use strict;
 use warnings;
+no strict 'refs';
+no warnings 'uninitialized';
 
+use Date::Calc qw(Days_in_Month Decode_Day_of_Week Nth_Weekday_of_Month_Year);
 use DateTime;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 sub new {
     my $class = shift;
@@ -19,275 +22,419 @@ sub parse_datetime {
 
     if (@_ > 1) {
         %opts        = @_;
-    $date_string = $opts{string};
+        $date_string = $opts{string};
         $DEBUG       = $opts{debug};
     } else {
         ($date_string) = @_;
     }
 
-    no strict 'refs';
-
-    my @tokens = split ' ', $date_string;
-    my $buffer = '';
-
     my ($sec, $min, $hour, $day, $month, $year, $wday, $yday) = localtime;
     $month++; $year += 1900;
 
-    for (my $i = 0; $i < @tokens; $i++) {
-        print "$tokens[$i]\n" if $DEBUG;
+    $self->{sec}   = $sec;
+    $self->{min}   = $min;
+    $self->{hour}  = $hour;
+    $self->{day}   = $day;
+    $self->{month} = $month;
+    $self->{year}  = $year;
+    $self->{wday}  = $wday;
+    $self->{yday}  = $yday;
 
-        my %weekdays = (Monday    => 1,
-                        Tuesday   => 2,
-                        Wednesday => 3,
-                        Thursday  => 4,
-                        Friday    => 5,
-                        Saturday  => 6,
-                        Sunday    => 0);
+    @{$self->{tokens}} = split ' ', $date_string;
 
-        my %months = (January   => 1,
-                      February  => 2,
-                      March     => 3,
-                      April     => 4,
-                      May       => 5,
-                      June      => 6,
-                      July      => 7,
-                      August    => 8,
-                      September => 9,
-                      October   => 10,
-                      November  => 11,
-                      December  => 12);
+    for ($self->{index} = 0; $self->{index} < @{$self->{tokens}}; $self->{index}++) {
 
-        my %monthdays = (1  => 31,
-                         2  => 28,
-                         3  => 31,
-                         4  => 30,
-                         5  => 31,
-                         6  => 30,
-                         7  => 31,
-                         8  => 31,
-                         9  => 30,
-                         10 => 31,
-                         11 => 30,
-                         12 => 31);
+        print "$self->{tokens}->[$self->{index}]\n" if $DEBUG;
 
-        no warnings 'uninitialized';
+        %{$self->{weekdays}} = (Monday    => 1,
+                                Tuesday   => 2,
+                                Wednesday => 3,
+                                Thursday  => 4,
+                                Friday    => 5,
+                                Saturday  => 6,
+                                Sunday    => 0);
 
-        if ($tokens[$i+2] =~ /^ago$/i) {
-            my @new_tokens = splice(@tokens, $i, 3);
-            if ($new_tokens[1] =~ /^hour(?:s)?$/i) {
-                $hour -= $new_tokens[0];
-            }
-            if ($new_tokens[1] =~ /^day(?:s)?$/i) {
-                $day -= $new_tokens[0];
-            }
-            if ($new_tokens[1] =~ /^week(?:s)?$/i) {
-                $day -= 7 * $new_tokens[0];
-            }
-            if ($new_tokens[1] =~ /^month(?:s)?$/i) {
-                $month -= $new_tokens[0];
-            }
-            if ($new_tokens[1] =~ /^year(?:s)?$/i) {
-                $year -= $new_tokens[0];
-            }
+        %{$self->{months}} = (January   => 1,
+                              February  => 2,
+                              March     => 3,
+                              April     => 4,
+                              May       => 5,
+                              June      => 6,
+                              July      => 7,
+                              August    => 8,
+                              September => 9,
+                              October   => 10,
+                              November  => 11,
+                              December  => 12);
+
+        if ($self->{tokens}->[$self->{index}+2] =~ /^ago$/i) {
+            $self->_ago;
         }
 
-        if ($tokens[$i+3] =~ /^now$/i) {
-            my @new_tokens = splice(@tokens, $i, 4);
-            if ($new_tokens[1] =~ /^day(?:s)?$/i) {
-                if ($new_tokens[2] =~ /^before$/i) {
-                    $day -= $new_tokens[0];
-                } elsif ($new_tokens[2] =~ /^from$/i) {
-                    $day += $new_tokens[0];
-                }
-            }
-            if ($new_tokens[1] =~ /^week(?:s)?$/i) {
-                if ($new_tokens[2] =~ /^before$/i) {
-                    $day -= 7 * $new_tokens[0];
-                } elsif ($new_tokens[2] =~ /^from$/i) {
-                    $day += 7 * $new_tokens[0];
-                }
-            }
-            if ($new_tokens[1] =~ /^month(?:s)?$/i) {
-                if ($new_tokens[2] =~ /^before$/i) {
-                    $month -= $new_tokens[0];
-                } elsif ($new_tokens[2] =~ /^from$/i) {
-                    $month += $new_tokens[0];
-                }
-            }
-            if ($new_tokens[1] =~ /^year(?:s)?$/i) {
-                if ($new_tokens[2] =~ /^before$/i) {
-                    $year -= $new_tokens[0];
-                } elsif ($new_tokens[2] =~ /^from$/i) {
-                    $year += $new_tokens[0];
-                }
-            }
+        if ($self->{tokens}->[$self->{index}+3] =~ /^now$/i) {
+            $self->_now;
         }
 
-        if ($tokens[$i] =~ /^(?:morning|afternoon|evening)$/i) {
-            my $hour_token;
-            if ($tokens[$i-3] =~ /\d/ and $tokens[$i-2] =~ /^in$/i and $tokens[$i-1] =~ /^the$/i) {
-                $hour_token = $tokens[$i-3];
-            }
-            if ($tokens[$i] =~ /^morning$/i) {
-                $hour = $hour_token ? $hour_token : '08';
-            } elsif ($tokens[$i] =~ /^afternoon$/i) {
-                $hour = $hour_token ? $hour_token + 12 : '14';
-            } else {
-                $hour = $hour_token ? $hour_token + 12 : '20';
-            }
-            $min = '00';
+        if ($self->{tokens}->[$self->{index}] =~ /^(?:morning|afternoon|evening)$/i) {
+            $self->_daytime;
         }
 
-        if ($tokens[$i] =~ /^at$/i) {
+        if ($self->{tokens}->[$self->{index}] =~ /^at$/i) {
             next;
-        } elsif ($tokens[$i] =~ /^(\d{1,2})(:\d{2})?\s?(am|pm)?$/i) {
-            my $hour_token = $1; my $min_token = $2;
-            my $timeframe = $3;
-            $hour = $hour_token; 
-            $min_token =~ s!:!!;
-            $min  = $min_token || '00';
-            if ($timeframe) {
-                if ($timeframe =~ /^pm$/i) {
-                    $hour_token += 12;
-                    $hour = $hour_token;
-                    $min  = '00' unless $min_token;
-                }
-            }
+        } elsif ($self->{tokens}->[$self->{index}] =~ /^(\d{1,2})(:\d{2})?(am|pm)?|(noon|midnight)$/i) {
+            my $hour_token    = $1;
+            my $min_token     = $2;
+            my $timeframe     = $3;
+            my $noon_midnight = $4;
+
+            $self->_at($hour_token, $min_token, $timeframe, $noon_midnight);
         }
 
-        if ($tokens[$i] =~ /^(\d{1,2})(?:st|nd|rd|th)$/i) {
-            $day = $1;
+        if ($self->{tokens}->[$self->{index}] =~ /^(\d{1,2})(?:st|nd|rd|th)? ?$/i) {
+            $self->_number($1);
         }
 
-        foreach my $key_month (keys %months) {
-            if ($tokens[$i] =~ /$key_month/i) {
-                $month = $months{$key_month};
+        foreach my $key_month (keys %{$self->{months}}) {
+            if ($self->{tokens}->[$self->{index}] =~ /$key_month/i) {
+                $self->{month} = $self->{months}->{$key_month};
                 last;
             }
         }
 
-        if ($tokens[$i] =~ /^\d{4}$/) {
-            $year = $tokens[$i];
+        if ($self->{tokens}->[$self->{index}] =~ /^\d{4}$/) {
+            $self->{year} = $self->{tokens}->[$self->{index}];
         }
 
-        if ($tokens[$i-1] !~ /^(?:this|next|last)$/i && $tokens[$i+1] !~ /^(?:this|next|last)$/i) {
-            foreach my $key_weekday (keys %weekdays) {
-                my $weekday_short = lc(substr($key_weekday,0,3));
-                if ($tokens[$i] =~ /$key_weekday/i || $tokens[$i] eq $weekday_short) {
-                    my $days_diff = $weekdays{$key_weekday} - $wday;
-                    $day += $days_diff;
-                    last;
-                }
-            }
+        if ($self->{tokens}->[$self->{index}] !~ /^(?:this|next|last)$/i
+            && $self->{tokens}->[$self->{index}-1] !~ /^(?:this|next|last)$/i
+            && $self->{tokens}->[$self->{index}-2] !~ /^(?:this|next|last)$/i
+            && $self->{tokens}->[$self->{index}+1] !~ /^(?:this|next|last)$/i) {
+            $self->_weekday;
         }
 
-        if ($tokens[$i] =~ /^this$/i) {
-            $buffer = 'this';
+        if ($self->{tokens}->[$self->{index}] =~ /^(?:this|in)$/i) {
+            $self->{buffer} = 'this_in';
             next;
-        } elsif ($buffer eq 'this') {
-            foreach my $key_weekday (keys %weekdays) {
-                my $weekday_short = lc(substr($key_weekday,0,3));
-                if ($tokens[$i] =~ /$key_weekday/i || $tokens[$i] eq $weekday_short) {
-                    my $days_diff = $weekdays{$key_weekday} - $wday;
-                    $day += $days_diff; $buffer = '';
-                    last;
-                }
-                if ($tokens[$i] =~ /^week$/i) {
-                    my $weekday = ucfirst(lc($tokens[$i-2]));
-                    my $days_diff = $weekdays{$weekday} - $wday;
-                    $day += $days_diff; $buffer = '';
-                    last;
-                }
-            }
+        } elsif ($self->{buffer} eq 'this_in') {
+            $self->_this_in;
         }
 
-        if ($tokens[$i] =~ /^next$/i) {
-            $buffer = 'next';
+        if ($self->{tokens}->[$self->{index}] =~ /^next$/i) {
+            $self->{buffer} = 'next';
             next;
-        } elsif ($buffer eq 'next') {
-            foreach my $key_weekday (keys %weekdays) {
-                my $weekday_short = lc(substr($key_weekday,0,3));
-                if ($tokens[$i] =~ /$key_weekday/i || $tokens[$i] eq $weekday_short) {
-                    my $days_diff = (7 - $wday) + $weekdays{$key_weekday};
-                    $day += $days_diff; $buffer = '';   
-                    last;
-                }
-                if ($tokens[$i] =~ /^week$/i) {
-                    my $weekday = ucfirst(lc($tokens[$i-2]));
-                    my $days_diff = (7 - $wday) + $weekdays{$weekday};
-                    $day += $days_diff; $buffer = '';
-                    last;
-                }
-                if ($tokens[$i] =~ /^month$/i) {
-                    $month++;
-                    last;
-                }
-                if ($tokens[$i] =~ /^year$/i) {
-                    $year++;
-                    last;
-                }
-            }
+        } elsif ($self->{buffer} eq 'next') {
+            $self->_next;
         }
 
-        if ($tokens[$i] =~ /^last$/i) {
-            $buffer = 'last';
+        if ($self->{tokens}->[$self->{index}] =~ /^last$/i) {
+            $self->{buffer} = 'last';
             next;
-        } elsif ($buffer eq 'last') {
-            foreach my $key_weekday (keys %weekdays) {
-                my $weekday_short = lc(substr($key_weekday,0,3));
-                if ($tokens[$i] =~ /$key_weekday/i || $tokens[$i] eq $weekday_short) {
-                    my $days_diff = $wday + (7 - $weekdays{$key_weekday});
-                    $day -= $days_diff; $buffer = '';
-                    last;
-                }
-            }
-            if ($tokens[$i] =~ /^week$/i) {
-                if (exists $weekdays{ucfirst(lc($tokens[$i+1]))}) {
-                    my $weekday = ucfirst(lc($tokens[$i+1]));
-                    my $days_diff = $wday + (7 - $weekdays{$weekday});
-                    $day -= $days_diff; $buffer = '';
-                } elsif (exists $weekdays{ucfirst(lc($tokens[$i-2]))}) {
-                    my $weekday = ucfirst(lc($tokens[$i-2]));
-                    my $days_diff = $wday + (7 - $weekdays{$weekday});
-                    $day -= $days_diff; $buffer = '';
-                }
-            }
-            if ($tokens[$i] =~ /^month$/i) {
-                $month--;
-            }
-            if ($tokens[$i] =~ /^year$/i) {
-                $year--;
-            }
+        } elsif ($self->{buffer} eq 'last') {
+            $self->_last;
         }
 
-        if ($day > $monthdays{$month}) {
-            my $days_next_month = $day - $monthdays{$month};
-            $month++; $day = $days_next_month;
-        } elsif ($day < 1) {
-            # XXX this branch needs some provement 
-            my $days_last_month = $monthdays{$month-1} - $day;
-            $month--; $day = $days_last_month;
+         $self->_monthdays_limit;
+         $self->_day;
+    }
+
+    $self->{sec}   = "0$self->{sec}"   unless length($self->{sec})   == 2;
+    $self->{min}   = "0$self->{min}"   unless length($self->{min})   == 2;
+    $self->{hour}  = "0$self->{hour}"  unless length($self->{hour})  == 2;
+    $self->{day}   = "0$self->{day}"   unless length($self->{day})   == 2;
+    $self->{month} = "0$self->{month}" unless length($self->{month}) == 2;
+
+    my $dt = DateTime->new(year   => $self->{year},
+                           month  => $self->{month},
+                           day    => $self->{day},
+                           hour   => $self->{hour},
+                           minute => $self->{min},
+                           second => $self->{sec});
+    return $dt;
+}
+
+sub _ago {
+    my $self = shift;
+
+    my @new_tokens = splice(@{$self->{tokens}}, $self->{index}, 3);
+
+    if ($new_tokens[1] =~ /^hour(?:s)?$/i) {
+        $self->{hour} -= $new_tokens[0];
+    }
+    if ($new_tokens[1] =~ /^day(?:s)?$/i) {
+        $self->{day} -= $new_tokens[0];
+    }
+    if ($new_tokens[1] =~ /^week(?:s)?$/i) {
+        $self->{day} -= 7 * $new_tokens[0];
+    }
+    if ($new_tokens[1] =~ /^month(?:s)?$/i) {
+        $self->{month} -= $new_tokens[0];
+    }
+    if ($new_tokens[1] =~ /^year(?:s)?$/i) {
+        $self->{year} -= $new_tokens[0];
+    }
+}
+
+sub _now {
+    my $self = shift;
+
+    my @new_tokens = splice(@{$self->{tokens}}, $self->{index}, 4);
+
+    if ($new_tokens[1] =~ /^day(?:s)?$/i) {
+        if ($new_tokens[2] =~ /^before$/i) {
+            $self->{day} -= $new_tokens[0];
+        } elsif ($new_tokens[2] =~ /^from$/i) {
+            $self->{day} += $new_tokens[0];
+        }
+    }
+    if ($new_tokens[1] =~ /^week(?:s)?$/i) {
+        if ($new_tokens[2] =~ /^before$/i) {
+            $self->{day} -= 7 * $new_tokens[0];
+        } elsif ($new_tokens[2] =~ /^from$/i) {
+            $self->{day} += 7 * $new_tokens[0];
+        }
+     }
+     if ($new_tokens[1] =~ /^month(?:s)?$/i) {
+         if ($new_tokens[2] =~ /^before$/i) {
+             $self->{month} -= $new_tokens[0];
+         } elsif ($new_tokens[2] =~ /^from$/i) {
+             $self->{month} += $new_tokens[0];
+         }
+     }
+     if ($new_tokens[1] =~ /^year(?:s)?$/i) {
+         if ($new_tokens[2] =~ /^before$/i) {
+             $self->{year} -= $new_tokens[0];
+         } elsif ($new_tokens[2] =~ /^from$/i) {
+             $self->{year} += $new_tokens[0];
+         }
+     }
+}
+
+sub _daytime {
+    my $self = shift;
+
+    my $hour_token;
+
+    if ($self->{tokens}->[$self->{index}-3] =~ /\d/ and $self->{tokens}->[$self->{index}-2] =~ /^in$/i 
+        and $self->{tokens}->[$self->{index}-1] =~ /^the$/i) {
+        $hour_token = $self->{tokens}->[$self->{index}-3];
+    }
+    if ($self->{tokens}->[$self->{index}] =~ /^morning$/i) {
+        $self->{hour} = $hour_token ? $hour_token : '08' - $self->{hours_before};
+        undef $self->{hours_before};
+    } elsif ($self->{tokens}->[$self->{index}] =~ /^afternoon$/i) {
+        $self->{hour} = $hour_token ? $hour_token + 12 : '14' - $self->{hours_before};
+        undef $self->{hours_before};
+    } else {
+        $self->{hour} = $hour_token ? $hour_token + 12 : '20' - $self->{hours_before};
+        undef $self->{hours_before};
+    }
+
+    $self->{min} = '00';
+}
+
+sub _number {
+    my ($self, $often) = @_;
+
+    return if $self->{tokens}->[$self->{index}+1] eq 'in';
+
+    if ($self->{tokens}->[$self->{index}+1] =~ /month(?:)/i) {
+        $self->{month} += $often;
+        $self->{month} -= 12 if $self->{month} > 12;
+    } elsif ($self->{tokens}->[$self->{index}+1] =~ /hour(?:s)/i) {
+        if ($self->{tokens}->[$self->{index}+2] =~ /before/i) {
+            $self->{hours_before} = $often;
+        } elsif ($self->{tokens}->[$self->{index}+2] =~ /after/i) {
+            $self->{hours_after} = $often;
+        }
+    } else {
+        $self->{day} = $often;
+    }
+}
+
+sub _at {
+    my ($self, $hour_token, $min_token, $timeframe, $noon_midnight)  = @_;
+
+    if (!$timeframe && $self->{tokens}->[$self->{index}+1] 
+        && $self->{tokens}[$self->{index}+1] =~ /^[ap]m$/i) {
+        $timeframe = $self->{tokens}[$self->{index}+1];
+        $self->{index}++;
+    }
+
+    if ($hour_token) {
+        $self->{hour} = $hour_token;
+        $min_token =~ s!:!! if defined($min_token);
+        $self->{min}  = $min_token || '00';
+
+        if ($timeframe) {
+            if ($timeframe =~ /^pm$/i) {
+                $hour_token += 12;
+                $self->{hour} = $hour_token;
+                $self->{min}  = 0 unless $min_token;
+            }
+        }
+    } elsif ($noon_midnight) {
+        if ($noon_midnight =~ /noon/i) {
+            ($self->{hour}, $self->{min}) = (12,0);
+            $self->{hour} -= $self->{hours_before};
+            undef $self->{hours_before};
+        } elsif ($noon_midnight =~ /midnight/i) {
+            ($self->{hour}, $self->{min}) = (0,0);
+            $self->{hour} -= $self->{hours_before};
+            $self->{day}++;
+        }
+    }
+}
+
+sub _weekday {
+    my $self = shift;
+
+    foreach my $key_weekday (keys %{$self->{weekdays}}) {
+        my $weekday_short = lc(substr($key_weekday,0,3));
+
+        if ($self->{tokens}->[$self->{index}] =~ /$key_weekday/i || $self->{tokens}->[$self->{index}] eq $weekday_short) {
+            $key_weekday = ucfirst(lc($key_weekday));
+            my $days_diff = $self->{weekdays}->{$key_weekday} > $self->{wday}
+              ? $self->{weekdays}->{$key_weekday} - $self->{wday}
+              : $self->{wday} - $self->{weekdays}->{$key_weekday};
+            $self->{day} += $days_diff;
+            last;
+        }
+    }
+}
+
+sub _this_in {
+    my $self = shift;
+
+    foreach my $key_weekday (keys %{$self->{weekdays}}) {
+        my $weekday_short = lc(substr($key_weekday,0,3));
+
+        if ($self->{tokens}->[$self->{index}] =~ /$key_weekday/i || $self->{tokens}->[$self->{index}] eq $weekday_short) {
+            my $days_diff = $self->{weekdays}->{$key_weekday} - $self->{wday};
+            $self->{day} += $days_diff; $self->{buffer} = '';
+            last;
         }
 
-        if ($tokens[$i] =~ /^(?:today|yesterday|tomorrow)$/i) {
-            $day-- if $tokens[$i] =~ /^yesterday$/i;
-            $day++ if $tokens[$i] =~ /^tomorrow$/i;
+        if ($self->{tokens}->[$self->{index}] =~ /^week$/i) {
+            my $weekday = ucfirst(lc($self->{tokens}->[$self->{index}-2]));
+            my $days_diff = Decode_Day_of_Week($weekday) - $self->{wday};
+            $self->{day} += $days_diff; $self->{buffer} = '';
+            last;
+        }
+
+        foreach my $month (keys %{$self->{months}}) {
+            if ($self->{tokens}->[$self->{index}] =~ /$month/i) {
+
+                foreach my $weekday (keys %{$self->{weekdays}}) {
+                    if ($self->{tokens}->[$self->{index}-2] =~ /$weekday/i) {
+
+                        my ($often) = $self->{tokens}->[$self->{index}-3] =~ /^(\d{1,2})(?:st|nd|rd|th)?$/i;
+                        ($self->{year}, $self->{month}, $self->{day}) =
+                        Nth_Weekday_of_Month_Year($self->{year}, $self->{months}->{$month}, $self->{weekdays}->{$weekday}, $often);
+                    }
+                }
+            }
+        }
+    }
+}
+
+sub _next {
+    my $self = shift;
+
+    foreach my $key_weekday (keys %{$self->{weekdays}}) {
+        my $weekday_short = lc(substr($key_weekday,0,3));
+
+        if ($self->{tokens}->[$self->{index}] =~ /$key_weekday/i || $self->{tokens}->[$self->{index}] eq $weekday_short) {
+            my $days_diff = (7 - $self->{wday}) + Decode_Day_of_Week($key_weekday);
+            $self->{day} += $days_diff; $self->{buffer} = '';
+            last;
+        }
+
+        if ($self->{tokens}->[$self->{index}] =~ /^week$/i) {
+            my $weekday = ucfirst(lc($self->{tokens}->[$self->{index}-2]));
+            my $days_diff = (7 - $self->{wday}) + Decode_Day_of_Week($weekday);
+            $self->{day} += $days_diff; $self->{buffer} = '';
+            last;
+        }
+
+        if ($self->{tokens}->[$self->{index}] =~ /^month$/i) {
+            $self->{month}++;
+            last;
+        }
+
+        if ($self->{tokens}->[$self->{index}] =~ /^year$/i) {
+            $self->{year}++;
+            last;
+        }
+    }
+}
+
+sub _last {
+    my $self = shift;
+
+    foreach my $key_weekday (keys %{$self->{weekdays}}) {
+        my $weekday_short = lc(substr($key_weekday,0,3));
+
+        if ($self->{tokens}->[$self->{index}] =~ /$key_weekday/i || $self->{tokens}->[$self->{index}] eq $weekday_short) {
+            my $days_diff = $self->{wday} + (7 - $self->{weekdays}->{$key_weekday});
+            $self->{day} -= $days_diff; $self->{buffer} = '';
+            last;
         }
     }
 
-    $sec   = "0$sec"   unless length($sec)   == 2;
-    $min   = "0$min"   unless length($min)   == 2;
-    $hour  = "0$hour"  unless length($hour)  == 2;
-    $day   = "0$day"   unless length($day)   == 2;
-    $month = "0$month" unless length($month) == 2;
+    if ($self->{tokens}->[$self->{index}] =~ /^week$/i) {
 
-    my $dt = DateTime->new(year   => $year,
-                           month  => $month,
-                           day    => $day,
-                           hour   => $hour,
-                           minute => $min,
-                           second => $sec);
-    return $dt;
+        if (exists $self->{weekdays}->{ucfirst(lc($self->{tokens}->[$self->{index}+1]))}) {
+            my $weekday = ucfirst(lc($self->{tokens}->[$self->{index}+1]));
+            my $days_diff = $self->{wday} + (7 - $self->{weekdays}->{$weekday});
+            $self->{day} -= $days_diff; $self->{buffer} = '';
+        } elsif (exists $self->{weekdays}->{ucfirst(lc($self->{tokens}->[$self->{index}-2]))}) {
+            my $weekday = ucfirst(lc($self->{tokens}->[$self->{index}-2]));
+            my $days_diff = $self->{wday} + (7 - $self->{weekdays}->{$weekday});
+            $self->{day} -= $days_diff; $self->{buffer} = '';
+        }
+    }
+
+    if ($self->{tokens}->[$self->{index}] =~ /^month$/i) {
+        $self->{month}--;
+    }
+
+    if ($self->{tokens}->[$self->{index}] =~ /^year$/i) {
+        $self->{year}--;
+    }
+}
+
+sub _monthdays_limit {
+    my $self = shift;
+
+    my $monthdays = Days_in_Month($self->{year}, $self->{month});
+
+    if ($self->{day} > $monthdays) {
+        $self->{month}++; $self->{day} = $self->{day} - $monthdays;
+    } elsif ($self->{day} < 1) {
+        $monthdays = Days_in_Month($self->{year}, ($self->{month}-1));
+        $self->{month}--; $self->{day} = $monthdays - $self->{day};
+    }
+}
+
+sub _day {
+    my $self = shift;
+
+    if ($self->{tokens}->[$self->{index}] =~ /^(?:today|yesterday|tomorrow)$/i) {
+        $self->{day}-- if $self->{tokens}->[$self->{index}] =~ /yesterday/i;
+        $self->{day}++ if $self->{tokens}->[$self->{index}] =~ /tomorrow/i;
+
+        if ($self->{hours_before}) {
+            $self->{hour} = 24 - $self->{hours_before};
+            $self->{day}--;
+        } elsif ($self->{hours_after}) {
+            $self->{hour} = 0 + $self->{hours_after};
+        }
+    }
+
+    if ($self->{hour} < 0) {
+        my ($subtract) = $self->{hour} =~ /\-(.*)/;
+        $self->{hour} = 12 - $subtract;
+    }
 }
 
 1;
@@ -312,6 +459,10 @@ string with a human readable date/time and creates a machine readable one by app
 natural parsing logic.
 
 =head1 FUNCTIONS
+
+=head2 new
+
+Creates a new DateTime::Format::Natural::EN object.
 
 =head2 parse_datetime
 
@@ -344,7 +495,6 @@ Below are some examples of human readable date/time input:
  mon 2:35
  4pm
  6 in the morning
- friday 1pm
  sat 7 in the evening
  yesterday
  today
@@ -369,10 +519,14 @@ Below are some examples of human readable date/time input:
  in 3 hours
  1 year ago tomorrow
  3 months ago saturday at 5:00pm
+ 4th day last week
+ 3rd wednesday in november
+ 3rd month next year
+ 7 hours before tomorrow at noon
 
 =head1 SEE ALSO
 
-L<DateTime>, L<http://datetime.perl.org/>  
+L<DateTime>, L<Date::Calc>, L<http://datetime.perl.org/>
 
 =head1 AUTHOR
 
@@ -380,9 +534,9 @@ Steven Schubiger <schubiger@cpan.org>
 
 =head1 LICENSE
 
-This program is free software; you may redistribute it and/or 
+This program is free software; you may redistribute it and/or
 modify it under the same terms as Perl itself.
 
-See L<http://www.perl.com/perl/misc/Artistic.html>	    
+See L<http://www.perl.com/perl/misc/Artistic.html>
 
 =cut

@@ -15,6 +15,9 @@ DESCRIPTION
     and creates a machine readable one by applying natural parsing logic.
 
 FUNCTIONS
+  new
+    Creates a new DateTime::Format::Natural::EN object.
+
   parse_datetime
     Creates a "DateTime" object from a human readable date/time string.
 
@@ -42,7 +45,6 @@ EXAMPLES
      mon 2:35
      4pm
      6 in the morning
-     friday 1pm
      sat 7 in the evening
      yesterday
      today
@@ -66,9 +68,13 @@ EXAMPLES
      in 3 hours
      1 year ago tomorrow
      3 months ago saturday at 5:00pm
+     4th day last week
+     3rd wednesday in november
+     3rd month next year
+     7 hours before tomorrow at noon
 
 SEE ALSO
-    DateTime, <http://datetime.perl.org/>
+    DateTime, Date::Calc, <http://datetime.perl.org/>
 
 AUTHOR
     Steven Schubiger <schubiger@cpan.org>

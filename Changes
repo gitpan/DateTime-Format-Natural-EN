@@ -1,5 +1,9 @@
 Revision history for Perl extension DateTime::Format::Natural::EN.
 
+0.08 Sun Nov 19 12:30:24 CET 2006
+
+ - Code is now object-oriented.
+
 0.07 Sat Oct 28 17:16:53 CEST 2006
 
  - Replaced all tabs in EN.pm with regular spaces (4).

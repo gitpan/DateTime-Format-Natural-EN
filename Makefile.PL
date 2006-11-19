@@ -9,7 +9,8 @@ WriteMakefile
           'VERSION_FROM' => 'lib/DateTime/Format/Natural/EN.pm',
           'PREREQ_PM' => {
                            'Test::More' => 0,
-                           'DateTime' => 0
+                           'DateTime' => 0,
+                           'Date::Calc' => 0
                          }
         )
 ;
