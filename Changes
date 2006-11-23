@@ -1,5 +1,11 @@
 Revision history for Perl extension DateTime::Format::Natural::EN.
 
+0.11
+
+ - Refactored the code where duplicated chunks were available.
+
+ - Evaluated whether the current listed expressions pass the parsing.
+
 0.10 Thu Nov 23 01:14:44 CET 2006
 
  - Substituted additions/subtractions where possible with the

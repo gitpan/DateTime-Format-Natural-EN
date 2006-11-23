@@ -1,6 +1,6 @@
 ---
 name: DateTime-Format-Natural-EN
-version: 0.10
+version: 0.11
 author:
   - 'Steven Schubiger <schubiger@cpan.org>'
 abstract: Create machine readable date/time with natural parsing logic
@@ -20,6 +20,6 @@ meta-spec:
 provides:
   DateTime::Format::Natural::EN:
     file: lib/DateTime/Format/Natural/EN.pm
-    version: 0.10
+    version: 0.11
 resources:
   license: http://dev.perl.org/licenses/
