@@ -1,5 +1,13 @@
 Revision history for Perl extension DateTime::Format::Natural::EN.
 
+0.10 Thu Nov 23 01:14:44 CET 2006
+
+ - Substituted additions/subtractions where possible with the
+   appropriate DateTime method calls.
+
+ - An Exception is thrown if no valid input has been given.
+   [Tatsuhiko Miyagawa <miyagawa@gmail.com>]
+
 0.09 Sun Nov 19 14:38:24 CET 2006
 
  - Date strings with slashes are now being split and assigned
