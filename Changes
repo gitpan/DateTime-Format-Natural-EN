@@ -1,6 +1,13 @@
 Revision history for Perl extension DateTime::Format::Natural::EN.
 
-0.11
+0.12 Fri Nov 24 20:36:37 CET 2006
+
+ - Added some basic tests to the testsuite which exercice
+   converting natural format strings to an according datetime object.
+
+ - Enhanced the collection of valid strings that are translated.
+
+0.11 Fri Nov 24 02:15:30 CET 2006
 
  - Refactored the code where duplicated chunks were available.
 
